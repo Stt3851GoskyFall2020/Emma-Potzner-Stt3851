@@ -1,0 +1,126 @@
+---
+title: "Project 1"
+output:
+  html_document: default
+  pdf_document: default
+---
+#Emma Potzner and Ryn Mundy
+#04/06/2020
+
+#Step 2:  Data Analysis and Writeup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this project, we will explore this Housing data by using price as the response variable and trying to find how the other variables can be used to predict the price of a House.
+
+Below, we have imported the data.
+
+```{r}
+library(readxl)
+housing <- read_excel("Housing.xlsx")
+head(housing)
+```
+
+#Data Summary:
+Now, we will look at the data itself to make sure it is in a good condition to be used for our modeling that will come later. Lukcily, no data points are missing, so there is no need to remove any data because of that. One point that strikes me as unsual based upon reading the data is point [74] because it has a lot size of 11 when all other lot sizes in this data are size 8 and below, with most being between sizes 1 and 5. The price of the house for this point is the second most expensive house, so we may explore lot size as a predicting factor later on because of this. One thing about this data that I believe needs clarification is the amount of bathrooms. Any number that is not an integer is listed with a .1 , whereas it was to my understanding that a half bathroom would be counted with a .5 (ex. 2.5 instead of 2.1 bathrooms). This may be a numerical error that we should change by adding a new column with the .5 decimal to indicate half bathrooms instead. I also find it unusual that the house with the most amount of bedrooms, data point [35], has what I would consider to be small square footage for a house with 6 bedrooms. It also has a very low age standard size, meaning that the house was small relative to the other houses built at the time. This could mean there is an input error for the number of bedrooms for this house or some other reason it has 6 bedrooms with small square footage. We will keep our eye on this point to see how it affects the data later. The final point that I will mention is that the most expensive house, point [2] at $450,000 , has an age standard size score of -1.3, meaning it is more than one standard deviation below the mean. This is unexpected for such an expensive house, but it leads me to believe that size of the house is definitely not the only predicting factor for a house's price.
+
+#Exploratory Data Analysis:
+Below are the ranges, mins, and maxes for each variable.
+```{r}
+sapply(housing, range)
+```
+
+```{r}
+sapply(housing, min)
+```
+```{r}
+sapply(housing, max)
+```
+#Exploratory Data Analysis:
+
+First, we will manipulate the data a little bit depending on the observations made above. We will change both the status and the elementary school district to be numeric. This will help in being able to use these as predictor variables. * status will be 1-active, 2-pending, and 3-sold * elem will be 1-Adams, 2-Crest, 3-Edge, 4-Edison, 5-Harris, 6-Parker
+
+```{r}
+housing$elem <- as.numeric(as.factor(housing$elem))
+housing$status <- as.numeric(as.factor(housing$status))
+#head(housing)
+#sapply(housing, class)
+```
+*Below, we are also changing the bathroom decimal value to 0.5 instead of 0.1 to make more sense to anyone who may view the data without prior knowledge of what the values may mean.*
+```{r}
+housing$bath[c(7,31,52,64,73) ] <- 1.5
+housing$bath[c(9,10,13,18,19,33,38,39,42,46,48,57,58,67,69,72) ] <- 2.5               
+housing$bath[c(41,54,59,60,61,62,63) ] <- 3.5
+housing$bath[c(7,31,52,64,73) ] 
+housing$bath[c(9,10,13,18,19,33,38,39,42,46,48,57,58,67,69,72) ]                
+housing$bath[c(41,54,59,60,61,62,63) ]
+```
+
+
+To start with our Exploratory Data Analysis, we will create a matrix to have a visual of how the variables may relate to each other.
+
+```{r}
+pairs(housing[,2:11])
+
+cor(housing[,2:11])
+```
+
+#Initial Modeling:  
+*Testing which predictors are significant with different, multiple regression models.*
+```{r}
+mrm <- lm(price ~ . - id, data = housing)
+summary(mrm)
+```
+
+```{r}
+mrm1 <- lm(price~ size + lot + bedrooms + bath + yearbuilt + garagesize + status + elem, data=housing)
+summary(mrm1)
+```
+
+```{r}
+mrm2 <- lm(price ~ bedrooms  + size + lot, data = housing)
+summary(mrm2)
+```
+```{r}
+mrm3 <- lm(price ~ size + size:lot + bath:bedrooms, data = housing)
+summary(mrm3)
+```
+
+#Model Modification:  
+After running a few different multiple regression models, we deteremined that "mrm2" is the best fit. In this model, both of the variables "bedrooms" and "size" appear to be strong predictors. Below, we verified with a VIF test that the predictors were a good fit.
+
+```{r}
+library(car)
+vif(mrm2)
+```
+*VIF result shows no reason to suspect that these variables should be removed from the model. If the results showed numbers between 5 and 10, this would be cause for concern.*
+
+#Conclusions: 
+Present your final model and diagnostic plots in support of that final model. In that presentation of the final model, comment on the R-squared value and its interpretation, give 95% confidence intervals for each of the β coefficients in your model, and illustrate your model’s use with a 95% confidence interval for the mean response and a 95% prediction interval for individual response for a hypothetical house of your choosing.
+
+```{r}
+#95% confidence interbals for each β coefficient
+confint(mrm2)
+```
+-We can say with 95% confindence that the mean house price is between 71,123.104 and 327,938.623 US dollars.
+
+-According to the R-squared value from our regession model "mrm2", 18.5% of the variance in the price is explained by the bedrooms, size, and lot.
+
+```{r}
+#Testing 95% confidence interval
+new.house <- data.frame(bedrooms=2, size=1.000, lot=1)
+predict(mrm2, new.house, interval = "confidence")
+```
+With 95% confidence, a house with 2 bedrooms, lot size of 1, and 1000 square feet will have a house price between 165.1699 and  296.1547 in US dollars.
+
+```{r}
+#Testing 95% prediction interval
+predict(mrm2, new.house, interval = "predict")
+```
+The 95% confidence interval of the house price with the given parameters is between 101.9412 and 359.3834 in US dollars. 
+
+
+
+
+
